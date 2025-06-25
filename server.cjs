@@ -8,6 +8,11 @@ app.get('/', (req, res) => {
   res.send('API en ligne ✔️');
 });
 
+// Nouvelle route /test pour vérifier le bon fonctionnement
+app.get('/test', (req, res) => {
+  res.json({ success: true, message: "La route /test fonctionne !" });
+});
+
 app.listen(PORT, () => {
   console.log(`Serveur lancé sur http://localhost:${PORT}`);
 });
