@@ -1,7 +1,8 @@
-
 const express = require('express');
 const app = express();
-const PORT = 3001;
+
+// Utilise le port défini par Render OU 3001 en local
+const PORT = process.env.PORT || 3001;
 
 app.get('/', (req, res) => {
   res.send('API en ligne ✔️');
