@@ -83,6 +83,7 @@ app.post('/extract-branding', async (req, res) => {
   }
 });
 
+// Le serveur démarre ici AVEC backticks pour utiliser la variable PORT
 app.listen(PORT, () => {
   console.log(`Serveur lancé sur http://localhost:${PORT}`);
 });
