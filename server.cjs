@@ -55,7 +55,8 @@ app.post('/extract-branding', async (req, res) => {
       }
     `;
 
-    const browserlessUrl = `https://production-s0.browserless.io/function?token=${BROWSERLESS_API_KEY}`;
+    const BROWSERLESS_API_URL = process.env.BROWSERLESS_API_URL || "https://production-s0.browserless.io";
+    const browserlessUrl = `${BROWSERLESS_API_URL}/function?token=${BROWSERLESS_API_KEY}`;
 
     // Appel à Browserless
     const response = await axios.post(
