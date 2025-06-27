@@ -1,5 +1,29 @@
+require('dotenv').config(); // Charge les variables du .env
+const express = require('express');
 const axios = require('axios');
+const app = express();
 
+app.use(express.json());
+
+const PORT = process.env.PORT || 3001;
+const BROWSERLESS_API_KEY = process.env.BROWSERLESS_API_KEY;
+
+// Vérifie la présence de la clé API au lancement
+if (!BROWSERLESS_API_KEY) {
+  console.error('❌ Clé API Browserless manquante dans le .env');
+  process.exit(1);
+}
+
+app.get('/', (req, res) => {
+  res.send('API en ligne ✔️');
+});
+
+// Route de test
+app.get('/test', (req, res) => {
+  res.json({ success: true, message: 'La route /test fonctionne !' });
+});
+
+// Route principale
 app.post('/extract-branding', async (req, res) => {
   const { url } = req.body;
   if (!url) {
@@ -7,74 +31,57 @@ app.post('/extract-branding', async (req, res) => {
   }
 
   try {
-    // Clé API Browserless
-    const apiKey = 'TON_API_KEY_ICI'; // Mets ta vraie clé ici ou dans un .env
-    const browserlessUrl = `https://chrome.browserless.io/screenshot?token=${apiKey}`;
-
-    // Demande à Browserless de prendre un screenshot ET d’extraire le DOM/styles
+    // Script JS à exécuter sur la page pour récupérer des styles
     const script = `
-      const getStyle = (selector) => {
-        const el = document.querySelector(selector);
-        if (!el) return null;
-        const cs = getComputedStyle(el);
-        return {
-          fontFamily: cs.fontFamily,
-          fontSize: cs.fontSize,
-          color: cs.color,
-          backgroundColor: cs.backgroundColor,
-          borderRadius: cs.borderRadius
+      () => {
+        const getStyle = (selector) => {
+          const el = document.querySelector(selector);
+          if (!el) return null;
+          const cs = window.getComputedStyle(el);
+          return {
+            fontFamily: cs.fontFamily,
+            fontSize: cs.fontSize,
+            color: cs.color,
+            backgroundColor: cs.backgroundColor,
+            borderRadius: cs.borderRadius
+          };
         };
-      };
-      // Renvoyer DOM et styles via "metadata"
-      return {
-        dom: document.documentElement.outerHTML,
-        styles: {
+        return {
           body: getStyle('body'),
           h1: getStyle('h1'),
-          button: getStyle('button')
-        }
-      };
+          button: getStyle('button'),
+          a: getStyle('a')
+        };
+      }
     `;
 
-    const payload = {
-      url,
-      // "metadata": true → pour renvoyer aussi le "return" de ton script ci-dessus dans la réponse,
-      metadata: true,
-      code: script,
-      // Tu peux aussi ajouter "fullPage": true pour un screenshot complet
-      options: { fullPage: true }
-    };
+    const browserlessUrl = `https://chrome.browserless.io/function?token=${BROWSERLESS_API_KEY}`;
 
-    const response = await axios.post(browserlessUrl, payload, {
-      headers: { 'Content-Type': 'application/json' },
-      responseType: 'arraybuffer' // pour recevoir l’image en binaire
-    });
-
-    // Récupérer la partie "metadata" qui contient dom/styles
-    // (Browserless encode la metadata dans les headers de la réponse)
-    const metadata = JSON.parse(
-      Buffer.from(
-        response.headers['x-browserless-metadata'] || '', // ou {} si absent
-        'base64'
-      ).toString('utf8')
+    // Appel à Browserless
+    const response = await axios.post(
+      browserlessUrl,
+      {
+        code: script,
+        context: { url }
+      },
+      { headers: { 'Content-Type': 'application/json' } }
     );
-
-    // Convertir l’image binaire en base64 pour l’affichage côté client
-    const screenshotBase64 = Buffer.from(response.data, 'binary').toString('base64');
 
     res.json({
       success: true,
-      url,
-      screenshotBase64,
-      dom: metadata.dom?.slice(0, 5000) + '...',
-      styles: metadata.styles
+      data: response.data,
+      url: url
     });
 
   } catch (err) {
+    console.error('Erreur Browserless:', err.response?.data || err.message);
     res.status(500).json({
       success: false,
-      error: err.message,
-      details: err.response?.data
+      error: err.response?.data || err.message
     });
   }
+});
+
+app.listen(PORT, () => {
+  console.log(`Serveur lancé sur http://localhost:${PORT}`);
 });
